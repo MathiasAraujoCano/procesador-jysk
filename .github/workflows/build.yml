@@ -30,7 +30,7 @@ jobs:
         pyinstaller --onefile --noconsole --name "ProcesadorLotes_JYSK" procesar_lotes.py
     
     - name: Upload executable as artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ProcesadorLotes-Windows-${{ github.run_number }}
         path: dist/ProcesadorLotes_JYSK.exe
