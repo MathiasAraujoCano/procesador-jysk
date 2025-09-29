@@ -1,0 +1,59 @@
+name: Build Windows Executable
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Permite ejecutar manualmente
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas openpyxl pyinstaller
+    
+    - name: Build executable
+      run: |
+        pyinstaller --onefile --noconsole --name "ProcesadorLotes_JYSK" procesar_lotes.py
+    
+    - name: Upload executable as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ProcesadorLotes-Windows-${{ github.run_number }}
+        path: dist/ProcesadorLotes_JYSK.exe
+        retention-days: 30
+    
+    - name: Create Release (if tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/ProcesadorLotes_JYSK.exe
+        body: |
+          ## 🚀 Procesador de Lotes JYSK v${{ github.ref_name }}
+          
+          ### 📦 Archivos incluidos:
+          - `ProcesadorLotes_JYSK.exe` - Ejecutable para Windows (no requiere Python)
+          
+          ### 📋 Instrucciones:
+          1. Descargar el archivo .exe
+          2. Hacer doble clic para ejecutar
+          3. Seleccionar archivo Excel a procesar
+          4. El resultado se guardará automáticamente
+          
+          ### ⚠️ Nota:
+          Windows Defender puede solicitar confirmación la primera vez.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

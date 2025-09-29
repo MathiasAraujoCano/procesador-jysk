@@ -1,0 +1,30 @@
+# Archivos generados automáticamente
+build/
+dist/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.env
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.DS_Store
+*.spec
+
+# Archivos temporales de Excel
+~$*.xlsx
+~$*.xls
+
+# Logs y archivos de debug
+*.log
+debug.txt
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
