@@ -58,10 +58,12 @@ def main():
     print(f"🗑️  Eliminadas por estado (Denegada/Reversada): {eliminadas_estado}")
     
     # 2. Manejar Anuladas: Eliminar tanto la anulada como la aprobada con mismo nro de autorización
-    if "Autorización" in df.columns:
+    if "Autorización" in df.columns and "Operación" in df.columns:
         df_antes_anuladas = len(df)
-        anuladas = df[df['Estado'] == 'Anulada']['Autorización'].unique()
-        # Eliminar todas las transacciones (Anulada y Aprobada) que tengan autorización de una anulada
+        # Buscar anulaciones en la columna 'Operación' (no 'Estado')
+        anuladas = df[df['Operación'] == 'Anulación']['Autorización'].unique()
+        print(f"🔍 Encontradas {len(anuladas)} autorizaciones con anulación")
+        # Eliminar todas las transacciones (Anulación y su par Aprobada) que tengan el mismo número de autorización
         df = df[~df['Autorización'].isin(anuladas)]
         eliminadas_anuladas = df_antes_anuladas - len(df)
         print(f"🗑️  Eliminadas por anulación (incluye pares): {eliminadas_anuladas}")
