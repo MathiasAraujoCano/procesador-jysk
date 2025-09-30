@@ -135,16 +135,34 @@ def main():
     # �📊 CREAR RESUMEN AGRUPADO
     print("\n📊 Creando resumen agrupado...")
     
-    # Agrupar por Fecha, Lote, Caja_Nombre y Tarjeta
+    # 💰 AJUSTAR MONTOS: Las devoluciones deben restarse, no sumarse
+    def calcular_monto_ajustado(row):
+        """Ajusta el monto según el tipo de operación: Devolución se resta"""
+        if row['Operación'] == 'Devolución':
+            return -abs(row['Monto'])  # Convertir a negativo (restar)
+        else:
+            return row['Monto']  # Mantener positivo (sumar)
+    
+    # Aplicar el ajuste de montos antes de agrupar
+    cajas_con_datos = cajas_con_datos.copy()  # Evitar warning de modificación
+    cajas_con_datos['Monto_Ajustado'] = cajas_con_datos.apply(calcular_monto_ajustado, axis=1)
+    
+    print(f"💰 Montos ajustados (devoluciones como negativas):")
+    devoluciones_count = len(cajas_con_datos[cajas_con_datos['Operación'] == 'Devolución'])
+    if devoluciones_count > 0:
+        monto_devoluciones = cajas_con_datos[cajas_con_datos['Operación'] == 'Devolución']['Monto_Ajustado'].sum()
+        print(f"     📊 {devoluciones_count} devoluciones por ${monto_devoluciones:,.2f}")
+    
+    # Agrupar por Fecha, Lote, Caja_Nombre y Tarjeta usando el monto ajustado
     resumen = cajas_con_datos.groupby(['Fecha', 'Lote', 'Caja_Nombre', 'Tarjeta']).agg({
-        'Monto': ['sum', 'count'],  # Suma de montos y cantidad de transacciones
-        'Operación': 'first',  # Tipo de operación (para referencia)
+        'Monto_Ajustado': ['sum', 'count'],  # Suma con devoluciones negativas y cantidad de transacciones
+        'Operación': lambda x: ', '.join(x.unique()),  # Tipos de operación
         'Estado': lambda x: ', '.join(x.unique()),  # Estados únicos
         'Caja': 'first'  # Código de caja original
     }).round(2)
     
     # Aplanar las columnas multi-nivel
-    resumen.columns = ['Monto_Total', 'Cantidad_Transacciones', 'Operacion', 'Estados', 'Codigo_Caja']
+    resumen.columns = ['Monto_Total', 'Cantidad_Transacciones', 'Operaciones', 'Estados', 'Codigo_Caja']
     resumen = resumen.reset_index()
     
     # Ordenar por fecha, lote y caja
@@ -192,7 +210,7 @@ def main():
             # Ordenar por Caja → Lote → Tarjeta
             datos_fecha = datos_fecha.sort_values(['Caja_Nombre', 'Lote', 'Tarjeta'])
             
-            # 🔧 Eliminar columnas no deseadas: Fecha, Operacion, Estados
+            # 🔧 Eliminar columnas no deseadas: Fecha, Operaciones, Estados  
             columnas_mantener = ['Lote', 'Caja_Nombre', 'Tarjeta', 'Monto_Total', 'Cantidad_Transacciones', 'Codigo_Caja']
             datos_fecha_limpio = datos_fecha[columnas_mantener]
             
@@ -242,11 +260,35 @@ def main():
                 # Si no hay datos, crear DataFrame vacío con las columnas correctas
                 datos_finales = pd.DataFrame(columns=['Lote', 'Caja_Nombre', 'Tarjeta', 'Monto_Total', 'Cantidad_Transacciones', 'Codigo_Caja'])
             
-            # Crear nombre de hoja limpio (eliminar caracteres inválidos para Excel)
-            fecha_str = str(fecha).replace('/', '_').replace('-', '_').replace(' ', '_').replace(':', '_')
-            # Eliminar otros caracteres problemáticos
-            fecha_str = ''.join(c for c in fecha_str if c.isalnum() or c == '_')[:31]
-            sheet_name = f"Fecha_{fecha_str}"
+            # Crear nombre de hoja limpio y simple
+            try:
+                # Si fecha es un objeto datetime, formatear directamente
+                if hasattr(fecha, 'strftime'):
+                    fecha_str = fecha.strftime("%d-%m-%Y")
+                else:
+                    # Si es string, intentar convertir y formatear
+                    from datetime import datetime
+                    if isinstance(fecha, str):
+                        # Intentar diferentes formatos comunes
+                        for fmt in ["%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d"]:
+                            try:
+                                fecha_obj = datetime.strptime(fecha, fmt)
+                                fecha_str = fecha_obj.strftime("%d-%m-%Y")
+                                break
+                            except:
+                                continue
+                        else:
+                            # Si no se puede parsear, usar string limpio
+                            fecha_str = str(fecha).replace('/', '-').replace(' 00:00:00', '')[:10]
+                    else:
+                        fecha_str = str(fecha).replace('/', '-').replace(' 00:00:00', '')[:10]
+                
+                sheet_name = f"Fecha {fecha_str}"
+                
+            except Exception:
+                # Fallback: usar el método anterior pero mas limpio
+                fecha_str = str(fecha).replace('/', '-').replace(' 00:00:00', '').replace(' ', '')[:10]
+                sheet_name = f"Fecha {fecha_str}"
             
             # Guardar en hoja separada solo si tiene datos
             if not datos_finales.empty:
@@ -298,9 +340,16 @@ def main():
     # Mostrar hojas por fecha
     for fecha in sorted(fechas_unicas):
         cantidad = len(resumen[resumen['Fecha'] == fecha])
-        fecha_str = str(fecha).replace('/', '_').replace('-', '_').replace(' ', '_').replace(':', '_')
-        fecha_str = ''.join(c for c in fecha_str if c.isalnum() or c == '_')[:31]
-        print(f"     • Fecha_{fecha_str}: {cantidad} registros para {fecha}")
+        # Formatear fecha de forma limpia para mostrar
+        try:
+            if hasattr(fecha, 'strftime'):
+                fecha_display = fecha.strftime("%d-%m-%Y")
+            else:
+                fecha_display = str(fecha).replace('/', '-').replace(' 00:00:00', '')[:10]
+        except:
+            fecha_display = str(fecha)[:10]
+        
+        print(f"     • Fecha {fecha_display}: {cantidad} registros")
     
     # 📊 MOSTRAR ESTADÍSTICAS FINALES
     print(f"\n📊 Estadísticas finales:")
