@@ -25,12 +25,19 @@ def procesar_lotes(file_descarga):
     }
     df = pd.read_excel(file_descarga)
     df = df[~df['Estado'].isin(['Denegada', 'Reversada'])]
+    # Detectar anulaciones sin match (autorización sin par)
+    anulaciones_sin_match = []
     if "Autorización" in df.columns and "Operación" in df.columns:
         anulaciones = df[df['Operación'] == 'Anulación']['Autorización'].unique()
         autorizaciones_a_eliminar = []
         for aut in anulaciones:
             if aut and (df['Autorización'] == aut).sum() > 1:
                 autorizaciones_a_eliminar.append(aut)
+        # Guardar anulaciones sin match
+        for aut in anulaciones:
+            if aut and (df['Autorización'] == aut).sum() == 1:
+                idxs = df[(df['Operación'] == 'Anulación') & (df['Autorización'] == aut)].index.tolist()
+                anulaciones_sin_match.extend(idxs)
         if autorizaciones_a_eliminar:
             df = df[~df['Autorización'].isin(autorizaciones_a_eliminar)]
     df['Tarjeta'] = df['Tarjeta'].replace({'Maestro': 'Mastercard'})
@@ -41,10 +48,13 @@ def procesar_lotes(file_descarga):
     cajas_con_datos = df[df['Caja_Nombre'].str.contains('Sin mapear') == False]
     cajas_con_datos['Tarjeta'] = cajas_con_datos['Tarjeta'].replace({'MAESTRO': 'MASTERCARD'})
     def calcular_monto_ajustado(row):
+        if row.name in anulaciones_sin_match:
+            return -abs(row['Monto'])
         if row['Operación'] == 'Devolución':
             return -abs(row['Monto'])
         else:
             return row['Monto']
+    color_anulacion_sin_match = 'FFB3B3'  # Rojo suave
     cajas_con_datos = cajas_con_datos.copy()
     cajas_con_datos['Monto_Ajustado'] = cajas_con_datos.apply(calcular_monto_ajustado, axis=1)
     resumen = cajas_con_datos.groupby(['Fecha', 'Lote', 'Caja_Nombre', 'Tarjeta']).agg({
@@ -130,7 +140,17 @@ def procesar_lotes(file_descarga):
                 for row_idx, (_, row) in enumerate(datos_finales.iterrows(), start=2):
                     caja_nombre = row['Caja_Nombre']
                     tarjeta = row['Tarjeta']
-                    if caja_nombre in colores_caja:
+                    # Detectar si es una anulación sin match
+                    es_anulacion_sin_match = False
+                    # Usamos el index original guardado en anulaciones_sin_match
+                    if row_idx-2 < len(datos_finales) and datos_finales.index[row_idx-2] in anulaciones_sin_match:
+                        es_anulacion_sin_match = True
+                    if es_anulacion_sin_match:
+                        fill = PatternFill(start_color=color_anulacion_sin_match, end_color=color_anulacion_sin_match, fill_type="solid")
+                        for col_idx in range(1, len(datos_finales.columns) + 1):
+                            cell = worksheet.cell(row=row_idx, column=col_idx)
+                            cell.fill = fill
+                    elif caja_nombre in colores_caja:
                         color_hex = colores_caja[caja_nombre]
                         fill = PatternFill(start_color=color_hex, end_color=color_hex, fill_type="solid")
                         for col_idx in range(1, len(datos_finales.columns) + 1):
