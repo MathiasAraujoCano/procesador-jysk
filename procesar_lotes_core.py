@@ -13,15 +13,30 @@ def procesar_lotes(file_descarga):
         'T00007': '5-CO',
         'T00001': '6-CO Manual',
         'T00002': '7-CO Manual',
+        'T00008': '1-PC',
+        'T00009': '2-PC',
+        'T00010': '3-PC',
+        'T00011': '5-PC',
+        'T00012': '4-PC',
+        'T00013': 'PC-BKP',
+        'T00014': 'PC-MANUAL',
+        'T00015': 'PC-MANUAL'
     }
     colores_caja = {
-        '1-CO': 'FFE6E6',
-        '2-CO': 'E6F3FF',
-        '3-CO': 'E6FFE6',
-        '4-CO': 'FFF2E6',
-        '5-CO': 'F0E6FF',
-        '6-CO Manual': 'FFFFE6',
-        '7-CO Manual': 'F0F0F0'
+        '1-CO': 'FFB7B2',      # Rosa pastel
+        '2-CO': 'B2C7FF',      # Azul pastel
+        '3-CO': 'B2FFD6',      # Verde menta
+        '4-CO': 'FFF7B2',      # Amarillo suave
+        '5-CO': 'D6B2FF',      # Lila pastel
+        '6-CO Manual': 'FFE6B2', # Naranja claro
+        '7-CO Manual': 'B2FFF7', # Turquesa pastel
+        '1-PC': 'FFD6F5',      # Rosa lavanda
+        '2-PC': 'B2FFF7',      # Turquesa pastel
+        '3-PC': 'FFB2E6',      # Rosa fuerte
+        '4-PC': 'B2FFD6',      # Verde menta
+        '5-PC': 'B2C7FF',      # Azul pastel
+        'PC-BKP': 'FFF7B2',    # Amarillo suave
+        'PC-MANUAL': 'D6B2FF'  # Lila pastel
     }
     df = pd.read_excel(file_descarga)
     df = df[~df['Estado'].isin(['Denegada', 'Reversada'])]
