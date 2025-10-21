@@ -39,7 +39,7 @@ def procesar_lotes(file_descarga):
         'PC-MANUAL': 'D6B2FF'  # Lila pastel
     }
     df = pd.read_excel(file_descarga)
-    df = df[~df['Estado'].isin(['Denegada', 'Reversada'])]
+    df = df[~df['Estado'].isin(['Denegada', 'Reversada', 'Error'])]
     # Detectar anulaciones sin match (autorización sin par)
     anulaciones_sin_match = []
     if "Autorización" in df.columns and "Operación" in df.columns:
