@@ -28,3 +28,20 @@ debug.txt
 .idea/
 *.swp
 *.swo
+
+# Archivos de prueba y testing
+test_*.py
+*_test.py
+test/
+tests/
+*.test.xlsx
+*.test.xls
+
+# Archivos de salida generados
+resumen_*.xlsx
+output_*.xlsx
+*_procesado.xlsx
+
+# Archivos temporales del procesador
+temp_*.xlsx
+temporal_*.xlsx

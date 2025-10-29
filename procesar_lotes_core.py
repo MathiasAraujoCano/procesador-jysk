@@ -40,21 +40,33 @@ def procesar_lotes(file_descarga):
     }
     df = pd.read_excel(file_descarga)
     df = df[~df['Estado'].isin(['Denegada', 'Reversada', 'Error'])]
-    # Detectar anulaciones sin match (autorización sin par)
+    # Detectar anulaciones sin match (autorización sin par) - PROCESANDO POR LOTE
     anulaciones_sin_match = []
-    if "Autorización" in df.columns and "Operación" in df.columns:
-        anulaciones = df[df['Operación'] == 'Anulación']['Autorización'].unique()
-        autorizaciones_a_eliminar = []
-        for aut in anulaciones:
-            if aut and (df['Autorización'] == aut).sum() > 1:
-                autorizaciones_a_eliminar.append(aut)
-        # Guardar anulaciones sin match
-        for aut in anulaciones:
-            if aut and (df['Autorización'] == aut).sum() == 1:
-                idxs = df[(df['Operación'] == 'Anulación') & (df['Autorización'] == aut)].index.tolist()
-                anulaciones_sin_match.extend(idxs)
-        if autorizaciones_a_eliminar:
-            df = df[~df['Autorización'].isin(autorizaciones_a_eliminar)]
+    indices_a_eliminar = []
+    
+    if "Autorización" in df.columns and "Operación" in df.columns and "Lote" in df.columns:
+        # Procesar cada lote independientemente
+        for lote in df['Lote'].unique():
+            df_lote = df[df['Lote'] == lote]
+            anulaciones_lote = df_lote[df_lote['Operación'] == 'Anulación']['Autorización'].unique()
+            
+            for aut in anulaciones_lote:
+                if aut:
+                    # Contar cuántas veces aparece esta autorización EN ESTE LOTE
+                    count_en_lote = (df_lote['Autorización'] == aut).sum()
+                    
+                    if count_en_lote > 1:
+                        # Hay par (venta + anulación en el mismo lote) - eliminar ambas
+                        indices_lote = df_lote[df_lote['Autorización'] == aut].index.tolist()
+                        indices_a_eliminar.extend(indices_lote)
+                    else:
+                        # Anulación sin par en este lote - marcar para ajuste de monto
+                        idx_anulacion = df_lote[(df_lote['Operación'] == 'Anulación') & (df_lote['Autorización'] == aut)].index.tolist()
+                        anulaciones_sin_match.extend(idx_anulacion)
+        
+        # Eliminar las transacciones que se cancelan entre sí (dentro del mismo lote)
+        if indices_a_eliminar:
+            df = df.drop(indices_a_eliminar)
     df['Tarjeta'] = df['Tarjeta'].replace({'Maestro': 'Mastercard'})
     def mapear_nombre_caja(codigo_caja):
         codigo_str = str(codigo_caja).strip()
