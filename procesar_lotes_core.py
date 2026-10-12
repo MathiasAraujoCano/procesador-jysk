@@ -38,6 +38,11 @@ def procesar_lotes(file_descarga):
         'PC-BKP': 'FFF7B2',    # Amarillo suave
         'PC-MANUAL': 'D6B2FF'  # Lila pastel
     }
+    # Orden de las cajas dentro del Excel: primero sucursal CO, luego PC
+    orden_cajas = [
+        '1-CO', '2-CO', '3-CO', '4-CO', '5-CO', '6-CO Manual', '7-CO Manual',
+        '1-PC', '2-PC', '3-PC', '4-PC', '5-PC', 'PC-BKP', 'PC-MANUAL'
+    ]
     df = pd.read_excel(file_descarga)
     df = df[~df['Estado'].isin(['Denegada', 'Reversada', 'Error'])]
     # Detectar anulaciones sin match (autorización sin par) - PROCESANDO POR LOTE
@@ -107,28 +112,10 @@ def procesar_lotes(file_descarga):
         fechas_unicas = resumen['Fecha'].unique()
         for fecha in sorted(fechas_unicas):
             datos_fecha = resumen[resumen['Fecha'] == fecha].copy()
-            datos_fecha = datos_fecha.sort_values(['Caja_Nombre', 'Lote', 'Tarjeta'])
+            datos_fecha['Orden_Caja'] = datos_fecha['Caja_Nombre'].apply(lambda nombre: orden_cajas.index(nombre) if nombre in orden_cajas else len(orden_cajas))
+            datos_fecha = datos_fecha.sort_values(['Orden_Caja', 'Lote', 'Tarjeta'])
             columnas_mantener = ['Lote', 'Caja_Nombre', 'Tarjeta', 'Monto_Total', 'Cantidad_Transacciones', 'Codigo_Caja']
-            datos_fecha_limpio = datos_fecha[columnas_mantener]
-            datos_por_lote = []
-            for (caja, lote), grupo_lote in datos_fecha_limpio.groupby(['Caja_Nombre', 'Lote']):
-                for _, fila in grupo_lote.iterrows():
-                    datos_por_lote.append(fila.to_dict())
-                fila_vacia = {
-                    'Lote': '',
-                    'Caja_Nombre': '',
-                    'Tarjeta': '',
-                    'Monto_Total': '',
-                    'Cantidad_Transacciones': '',
-                    'Codigo_Caja': ''
-                }
-                datos_por_lote.append(fila_vacia)
-            if datos_por_lote:
-                datos_finales = pd.DataFrame(datos_por_lote)
-                datos_finales['Monto_Total'] = pd.to_numeric(datos_finales['Monto_Total'], errors='coerce')
-                datos_finales['Cantidad_Transacciones'] = pd.to_numeric(datos_finales['Cantidad_Transacciones'], errors='coerce')
-            else:
-                datos_finales = pd.DataFrame(columns=columnas_mantener)
+            datos_finales = datos_fecha[columnas_mantener].reset_index(drop=True)
             try:
                 if hasattr(fecha, 'strftime'):
                     fecha_str = fecha.strftime("%d-%m-%Y")
