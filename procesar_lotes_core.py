@@ -1,7 +1,7 @@
 # Backend: procesamiento principal de lotes JYSK
 import pandas as pd
 import os
-from openpyxl.styles import PatternFill, Font
+from openpyxl.styles import PatternFill
 from datetime import datetime
 
 def procesar_lotes(file_descarga):
@@ -110,21 +110,10 @@ def procesar_lotes(file_descarga):
             datos_fecha = datos_fecha.sort_values(['Caja_Nombre', 'Lote', 'Tarjeta'])
             columnas_mantener = ['Lote', 'Caja_Nombre', 'Tarjeta', 'Monto_Total', 'Cantidad_Transacciones', 'Codigo_Caja']
             datos_fecha_limpio = datos_fecha[columnas_mantener]
-            datos_con_subtotales = []
+            datos_por_lote = []
             for (caja, lote), grupo_lote in datos_fecha_limpio.groupby(['Caja_Nombre', 'Lote']):
                 for _, fila in grupo_lote.iterrows():
-                    datos_con_subtotales.append(fila.to_dict())
-                subtotal_monto = grupo_lote['Monto_Total'].sum()
-                subtotal_transacciones = grupo_lote['Cantidad_Transacciones'].sum()
-                fila_subtotal = {
-                    'Lote': lote,
-                    'Caja_Nombre': caja,
-                    'Tarjeta': f'SUBTOTAL LOTE {lote}',
-                    'Monto_Total': float(subtotal_monto),
-                    'Cantidad_Transacciones': int(subtotal_transacciones),
-                    'Codigo_Caja': grupo_lote['Codigo_Caja'].iloc[0]
-                }
-                datos_con_subtotales.append(fila_subtotal)
+                    datos_por_lote.append(fila.to_dict())
                 fila_vacia = {
                     'Lote': '',
                     'Caja_Nombre': '',
@@ -133,9 +122,9 @@ def procesar_lotes(file_descarga):
                     'Cantidad_Transacciones': '',
                     'Codigo_Caja': ''
                 }
-                datos_con_subtotales.append(fila_vacia)
-            if datos_con_subtotales:
-                datos_finales = pd.DataFrame(datos_con_subtotales)
+                datos_por_lote.append(fila_vacia)
+            if datos_por_lote:
+                datos_finales = pd.DataFrame(datos_por_lote)
                 datos_finales['Monto_Total'] = pd.to_numeric(datos_finales['Monto_Total'], errors='coerce')
                 datos_finales['Cantidad_Transacciones'] = pd.to_numeric(datos_finales['Cantidad_Transacciones'], errors='coerce')
             else:
@@ -163,10 +152,8 @@ def procesar_lotes(file_descarga):
             if not datos_finales.empty:
                 datos_finales.to_excel(writer, sheet_name=sheet_name, index=False)
                 worksheet = writer.sheets[sheet_name]
-                font_negrita = Font(bold=True)
                 for row_idx, (_, row) in enumerate(datos_finales.iterrows(), start=2):
                     caja_nombre = row['Caja_Nombre']
-                    tarjeta = row['Tarjeta']
                     # Detectar si es una anulación sin match
                     es_anulacion_sin_match = False
                     # Usamos el index original guardado en anulaciones_sin_match
@@ -183,10 +170,6 @@ def procesar_lotes(file_descarga):
                         for col_idx in range(1, len(datos_finales.columns) + 1):
                             cell = worksheet.cell(row=row_idx, column=col_idx)
                             cell.fill = fill
-                    if isinstance(tarjeta, str) and tarjeta.startswith('SUBTOTAL LOTE'):
-                        for col_idx in range(1, len(datos_finales.columns) + 1):
-                            cell = worksheet.cell(row=row_idx, column=col_idx)
-                            cell.font = font_negrita
                 for column in worksheet.columns:
                     max_length = 0
                     column_letter = column[0].column_letter
