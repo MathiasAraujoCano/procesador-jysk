@@ -20,7 +20,13 @@ def procesar_lotes(file_descarga):
         'T00012': '4-PC',
         'T00013': 'PC-BKP',
         'T00014': 'PC-MANUAL',
-        'T00015': 'PC-MANUAL'
+        'T00015': 'PC-MANUAL',
+        'T00026': '1-TC',
+        'T00024': '2-TC',
+        'T00025': '3-TC',
+        'T00021': 'TC-MANUAL',
+        'T00022': 'TC-MANUAL',
+        'T00023': 'TC-MANUAL'
     }
     colores_caja = {
         '1-CO': 'FFB7B2',      # Rosa pastel
@@ -36,12 +42,17 @@ def procesar_lotes(file_descarga):
         '4-PC': 'B2FFD6',      # Verde menta
         '5-PC': 'B2C7FF',      # Azul pastel
         'PC-BKP': 'FFF7B2',    # Amarillo suave
-        'PC-MANUAL': 'D6B2FF'  # Lila pastel
+        'PC-MANUAL': 'D6B2FF', # Lila pastel
+        '1-TC': 'C9F2B2',      # Verde lima
+        '2-TC': 'B2E0FF',      # Celeste
+        '3-TC': 'F2C9B2',      # Durazno
+        'TC-MANUAL': 'E0E0E0'  # Gris claro
     }
-    # Orden de las cajas dentro del Excel: primero sucursal CO, luego PC
+    # Orden de las cajas dentro del Excel: primero sucursal CO, luego PC, luego TC
     orden_cajas = [
         '1-CO', '2-CO', '3-CO', '4-CO', '5-CO', '6-CO Manual', '7-CO Manual',
-        '1-PC', '2-PC', '3-PC', '4-PC', '5-PC', 'PC-BKP', 'PC-MANUAL'
+        '1-PC', '2-PC', '3-PC', '4-PC', '5-PC', 'PC-BKP', 'PC-MANUAL',
+        '1-TC', '2-TC', '3-TC', 'TC-MANUAL'
     ]
     df = pd.read_excel(file_descarga)
     df = df[~df['Estado'].isin(['Denegada', 'Reversada', 'Error'])]
