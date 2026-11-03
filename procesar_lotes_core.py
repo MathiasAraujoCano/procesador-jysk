@@ -61,9 +61,9 @@ def procesar_lotes(file_descarga):
     indices_a_eliminar = []
     
     if "Autorización" in df.columns and "Operación" in df.columns and "Lote" in df.columns:
-        # Procesar cada lote independientemente
-        for lote in df['Lote'].unique():
-            df_lote = df[df['Lote'] == lote]
+        # Procesar cada lote de cada caja independientemente (cada terminal numera sus propios lotes)
+        for caja_lote, lote in df[['Caja', 'Lote']].drop_duplicates().itertuples(index=False):
+            df_lote = df[(df['Caja'] == caja_lote) & (df['Lote'] == lote)]
             anulaciones_lote = df_lote[df_lote['Operación'] == 'Anulación']['Autorización'].unique()
             
             for aut in anulaciones_lote:
