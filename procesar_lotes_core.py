@@ -108,6 +108,8 @@ def procesar_lotes(file_descarga):
     }).round(2)
     resumen.columns = ['Monto_Total', 'Cantidad_Transacciones', 'Operaciones', 'Estados', 'Codigo_Caja']
     resumen = resumen.reset_index()
+    # No mostrar las filas que suman 0 (ventas canceladas por anulaciones/devoluciones)
+    resumen = resumen[resumen['Monto_Total'] != 0]
     resumen = resumen.sort_values(['Fecha', 'Lote', 'Caja_Nombre', 'Tarjeta'])
     ahora = datetime.now()
     timestamp = ahora.strftime("%d%m%Y_%H%M")
@@ -179,6 +181,10 @@ def procesar_lotes(file_descarga):
                             pass
                     adjusted_width = min(max_length + 2, 30)
                     worksheet.column_dimensions[column_letter].width = adjusted_width
+        if not writer.sheets:
+            # Todas las filas sumaron 0: dejar una hoja avisando en vez de fallar
+            pd.DataFrame({'Resultado': ['Sin movimientos: todas las transacciones se cancelaron (total 0)']}).to_excel(writer, sheet_name='Sin movimientos', index=False)
+            writer.sheets['Sin movimientos'].column_dimensions['A'].width = 70
     return {
         'output_file': output_file,
         'resumen': resumen
