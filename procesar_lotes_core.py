@@ -64,21 +64,34 @@ def procesar_lotes(file_descarga):
         # Procesar cada lote de cada caja independientemente (cada terminal numera sus propios lotes)
         for caja_lote, lote in df[['Caja', 'Lote']].drop_duplicates().itertuples(index=False):
             df_lote = df[(df['Caja'] == caja_lote) & (df['Lote'] == lote)]
-            anulaciones_lote = df_lote[df_lote['Operación'] == 'Anulación']['Autorización'].unique()
-            
-            for aut in anulaciones_lote:
-                if aut:
-                    # Contar cuántas veces aparece esta autorización EN ESTE LOTE
-                    count_en_lote = (df_lote['Autorización'] == aut).sum()
-                    
-                    if count_en_lote > 1:
-                        # Hay par (venta + anulación en el mismo lote) - eliminar ambas
-                        indices_lote = df_lote[df_lote['Autorización'] == aut].index.tolist()
-                        indices_a_eliminar.extend(indices_lote)
-                    else:
-                        # Anulación sin par en este lote - marcar para ajuste de monto
-                        idx_anulacion = df_lote[(df_lote['Operación'] == 'Anulación') & (df_lote['Autorización'] == aut)].index.tolist()
-                        anulaciones_sin_match.extend(idx_anulacion)
+            # Anulación con tarjeta ("Anulación") y con QR ("Anulacion QR", sin tilde)
+            es_anulacion = df_lote['Operación'].astype(str).str.strip().str.lower().str.startswith('anul')
+            ventas_disponibles = df_lote[~es_anulacion & df_lote['Operación'].astype(str).str.startswith('Venta')]
+            usadas = set()
+
+            for idx_anul, anul in df_lote[es_anulacion].iterrows():
+                # 1) Par por autorización (anulaciones con tarjeta)
+                candidatas = ventas_disponibles[
+                    (ventas_disponibles['Autorización'] == anul['Autorización'])
+                    & ~ventas_disponibles.index.isin(usadas)
+                ]
+                # 2) Par por nro de documento (Factura) y monto: las anulaciones QR
+                #    traen otra autorización pero la misma factura que la venta
+                if candidatas.empty and 'Factura' in df_lote.columns:
+                    candidatas = ventas_disponibles[
+                        (ventas_disponibles['Factura'] == anul['Factura'])
+                        & (ventas_disponibles['Monto'] == anul['Monto'])
+                        & ~ventas_disponibles.index.isin(usadas)
+                    ]
+
+                if not candidatas.empty:
+                    # Hay par (venta + anulación en el mismo lote) - eliminar ambas
+                    idx_venta = candidatas.index[0]
+                    usadas.add(idx_venta)
+                    indices_a_eliminar.extend([idx_venta, idx_anul])
+                else:
+                    # Anulación sin par en este lote - marcar para ajuste de monto
+                    anulaciones_sin_match.append(idx_anul)
         
         # Eliminar las transacciones que se cancelan entre sí (dentro del mismo lote)
         if indices_a_eliminar:
